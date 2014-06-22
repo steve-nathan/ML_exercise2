@@ -1,0 +1,133 @@
+# Machine Learning - Predict Exercise Method
+========================================================
+
+# Executive Summary
+
+The goal of the project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set.  
+
+Overview of the steps involved in the prediction process:-  
+Load the training dataset  
+Load the testing dataset  
+Preprocess the training dataset and removed incomplete observations  
+Set aside 70% of the training data for training  
+Set aside 30% of the training data to validate the model  
+Identify columns to be used to predict outcome  
+Apply randomforest to 70% training datase  
+Use the model to predict outcomes for 30% training dataset  
+Evaluate model  
+Use the model to predict outcomes for testing dataset  
+
+
+
+# Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+
+
+## Loading the data
+
+
+The training data for this project are available here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment. 
+
+```{r load, echo = TRUE,results = FALSE}
+library(knitr)
+library(caret)
+library(randomForest)
+library(R.utils)
+
+if(!file.exists("./data")){dir.create("./data")}
+
+# Download data file 
+url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+trainfilename="./data/pml-training.csv"
+if(!file.exists(trainfilename)){
+    setInternet2(TRUE)
+    download.file(url,trainfilename)
+}
+url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+testfilename="./data/pml-testing.csv"
+if(!file.exists(testfilename)){
+    setInternet2(TRUE)
+    download.file(url,testfilename)
+}
+
+# Read training data from file
+training <- read.csv( trainfilename,
+                           header = TRUE,
+                           na.strings = c("NA",""),
+                           sep = ","
+                   )
+
+# Read testing data from file
+testing <- read.csv( testfilename,
+                           header = TRUE,
+                           na.strings = c("NA",""),
+                           sep = "," 
+                   )
+
+```
+
+
+# Preprocess the data
+Remove observations with NAs from training data.  
+Set aside 70% for training.  
+Set aside 30% for validation.   
+
+```{r preprocess, echo = TRUE}
+NAs <- apply(training,2,function(x) {sum(is.na(x))}) 
+traindata <- training[,which(NAs == 0)]
+trainindex <- createDataPartition(y = traindata$classe, p=0.7,list=FALSE)
+train <- traindata[trainindex,]
+valid <- traindata[-trainindex,]
+```
+
+# Training
+Training with train() function with rf took a long time.
+
+randomForest() seems to work fast.
+
+```{r training, echo = TRUE}
+
+rf1 <- randomForest(classe ~ roll_belt+pitch_belt+yaw_belt+gyros_belt_x+gyros_belt_y+gyros_belt_z+accel_belt_x+accel_belt_y+accel_belt_z+
+magnet_belt_x+magnet_belt_y+magnet_belt_z+roll_arm+pitch_arm+yaw_arm+total_accel_arm+gyros_arm_x+gyros_arm_y+
+gyros_arm_z+accel_arm_x+accel_arm_y+accel_arm_z+magnet_arm_x+magnet_arm_y+magnet_arm_z, train, ntree=100)
+print(rf1)
+
+rf2 <- randomForest(classe ~ roll_belt+pitch_belt+yaw_belt+gyros_belt_x+gyros_belt_y+gyros_belt_z+accel_belt_x+accel_belt_y+accel_belt_z+
+magnet_belt_x+magnet_belt_y+magnet_belt_z+roll_arm+pitch_arm+yaw_arm+total_accel_arm+gyros_arm_x+gyros_arm_y+
+gyros_arm_z+accel_arm_x+accel_arm_y+accel_arm_z+magnet_arm_x+magnet_arm_y+magnet_arm_z, train, ntree=200)
+print(rf2)
+
+rf3 <- randomForest(classe ~ roll_belt+pitch_belt+yaw_belt+gyros_belt_x+gyros_belt_y+gyros_belt_z+accel_belt_x+accel_belt_y+accel_belt_z+
+magnet_belt_x+magnet_belt_y+magnet_belt_z+roll_arm+pitch_arm+yaw_arm+total_accel_arm+gyros_arm_x+gyros_arm_y+
+gyros_arm_z+accel_arm_x+accel_arm_y+accel_arm_z+magnet_arm_x+magnet_arm_y+magnet_arm_z, train, ntree=300)
+print(rf3)
+
+rf.all <- combine(rf1, rf2, rf3)
+print(rf.all)
+```
+# Cross validate on 30% of training data
+```{r validate, echo = TRUE}
+predictions <- predict(rf.all,valid)
+table(predictions,valid$classe)
+accuracy = sum(predictions == valid$classe)/length(predictions)
+accuracy
+```
+
+# Results / Prediction
+Use the combined model to predict outcomes for testing  
+OOB estimate of  error rate is expected to be less than  1.75%
+Apply model to predict on testing data.  
+```{r prediction, echo = TRUE}
+predictions <- predict(rf.all,testing)
+predictions
+```
